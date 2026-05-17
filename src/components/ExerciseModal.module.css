@@ -1,0 +1,222 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.backdrop {
+  flex: 1;
+}
+
+.sheet {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 20px 40px;
+  max-height: 88vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+
+.handle {
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: var(--mtd);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+.steps {
+  margin-bottom: 20px;
+}
+
+.step {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.step:last-child { border-bottom: none; }
+
+.stepNum {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--mtd);
+  line-height: 1;
+  min-width: 24px;
+  flex-shrink: 0;
+}
+
+.timerRing {
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timerInner {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.timerCount {
+  font-family: var(--font-display);
+  font-size: 52px;
+  color: var(--mtd);
+  line-height: 1;
+}
+
+.timerUnit {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+}
+
+.breathWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.breathBall {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(91,196,245,0.6), rgba(91,196,245,0.15));
+  border: 2px solid var(--mtd);
+  margin-bottom: 10px;
+  box-shadow: 0 0 30px var(--mtd-glow);
+}
+
+.breathLabel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--mtd);
+  letter-spacing: 2px;
+  min-height: 20px;
+}
+
+.glideCard {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.glideLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.glideBar {
+  height: 8px;
+  background: linear-gradient(90deg, var(--mtd), var(--mtd2));
+  border-radius: 4px;
+  position: relative;
+}
+
+.glideThumb {
+  position: absolute;
+  top: -4px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--mtd);
+  transition: left 0s;
+}
+
+.toneCard {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.toneNote {
+  font-family: var(--font-display);
+  font-size: 56px;
+  color: var(--mtd);
+  line-height: 1;
+}
+
+.toneFreq {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.toneHint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+.startBtn {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: linear-gradient(135deg, var(--mtd), var(--mtd2));
+  color: #0a0a0f;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+  margin-bottom: 12px;
+}
+
+.startBtn:active {
+  transform: scale(0.97);
+  filter: brightness(0.9);
+}
+
+.closeBtn {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.closeBtn:active { background: var(--surface2); }
