@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import styles from './ScalesPage.module.css'
 import { ALL_NOTES, ENHARMONIC, SCALES, getScaleNotes } from '../data/scales'
-import { useAudio, unlockAudio, playPianoNote } from '../hooks/useAudio'
+import { useAudio, unlockAudio } from '../hooks/useAudio'
 import Piano from '../components/Piano'
 
 export default function ScalesPage({ isPlaying, setIsPlaying }) {
@@ -62,7 +62,7 @@ export default function ScalesPage({ isPlaying, setIsPlaying }) {
         <div className={styles.notePills}>
           {notes.map((n, i) => (
             <button key={i} className={`${styles.notePill} ${i===0?styles.rootPill:''} ${i===playingIdx?styles.playingPill:''}`}
-              onClick={() => { unlockAudio(); playPianoNote(n+octave, 0.8) }}>{n}</button>
+              onClick={() => { unlockAudio(); playNote(n, octave, 0.8) }}>{n}</button>
           ))}
         </div>
         <div className={styles.degrees}>
@@ -80,7 +80,7 @@ export default function ScalesPage({ isPlaying, setIsPlaying }) {
             <button className={styles.octBtn} onClick={() => setOctave(o=>Math.min(6,o+1))}>+</button>
           </div>
         </div>
-        <Piano root={root} notes={notes} octave={octave} playNote={(n,o,d) => { unlockAudio(); playPianoNote(n+o, d || 0.8) }} />
+        <Piano root={root} notes={notes} octave={octave} playNote={(n,o,d) => { unlockAudio(); playNote(n,o,d) }} />
       </div>
 
       <div className={styles.bpmCard}>
