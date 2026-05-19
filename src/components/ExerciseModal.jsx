@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './ExerciseModal.module.css'
-import { useAudio, unlockAudio } from '../hooks/useAudio'
+import { useAudio, unlockAudio, playPianoNote, getSamplerReady } from '../hooks/useAudio'
 import { noteFreq, transposeScale, randomCoach, XP_REWARDS } from '../data/progression'
 import XPFloat from './XPFloat'
 
@@ -144,6 +144,17 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
   const [breathPhase, setBreathPhase] = useState(0)
   const [glidePos, setGlidePos]       = useState(0)
 
+  const [samplerReady, setSamplerReady] = useState(getSamplerReady())
+
+  // Poll for sampler ready — updates the loading state
+  useEffect(() => {
+    if (getSamplerReady()) { setSamplerReady(true); return }
+    const interval = setInterval(() => {
+      if (getSamplerReady()) { setSamplerReady(true); clearInterval(interval) }
+    }, 300)
+    return () => clearInterval(interval)
+  }, [])
+
   const { playToneHz, playGlide, playTrill, stopAll } = useAudio()
 
   // All timers stored in one ref object — easy to clear all
@@ -185,8 +196,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
 
   function tapKey(noteName) {
     unlockAudio()
-    const f = noteFreq(noteName)
-    if (f) playToneHz(f, 0.7, 'sine', 0.22)
+    playPianoNote(noteName, 1.0)
   }
 
   // ── SCALE WALK ENGINE ─────────────────────────────────────────────────
@@ -218,9 +228,8 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
       if (i > 0) setPassedNotes(prev => [...prev, seq[i - 1]])
       setActiveNote(note)
 
-      // Play the note audio
-      const freq = noteFreq(note)
-      if (freq) playToneHz(freq, NOTE_DURATION / 1000 * 0.82, 'sine', 0.22)
+      // Play the note audio — real piano sample
+      playPianoNote(note, NOTE_DURATION / 1000 * 0.82)
 
       xp(XP_REWARDS.completeNote)
       onAddNoteXP()
@@ -359,6 +368,11 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           </div>
         </div>
 
+        <div className={styles.samplerStatus}>
+          {samplerReady
+            ? <span className={styles.samplerReady}>🎹 Real piano loaded</span>
+            : <span className={styles.samplerLoading}>⏳ Loading piano samples…</span>}
+        </div>
         <button className={styles.startBtn} onClick={startExercise}>BEGIN EXERCISE</button>
         <button className={styles.closeBtn} onClick={onClose}>NOT NOW</button>
       </div>

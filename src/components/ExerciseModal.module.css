@@ -313,3 +313,20 @@
   font-style: italic;
   line-height: 1.5;
 }
+
+/* ── SAMPLER STATUS ──────────────────────────────────────────────────── */
+.samplerStatus {
+  text-align: center;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.samplerReady {
+  color: var(--accent2);
+}
+
+.samplerLoading {
+  color: var(--text-dim);
+}
