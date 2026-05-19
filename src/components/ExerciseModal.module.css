@@ -229,3 +229,87 @@
   margin-bottom: 12px;
   font-style: italic;
 }
+
+/* ── SEMITONE PROGRESS ───────────────────────────────────────────────── */
+.semitoneRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.semitoneLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.semitoneLabel:last-child {
+  text-align: right;
+}
+
+.semitoneBar {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  position: relative;
+  overflow: visible;
+}
+
+.semitoneFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+  position: absolute;
+  top: 0; left: 0;
+}
+
+.semitoneTick {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  background: var(--border);
+  border-radius: 1px;
+  transition: background 0.3s;
+}
+
+/* Position ticks evenly */
+.semitoneTick:nth-child(2)  { left: calc(1/12 * 100%) }
+.semitoneTick:nth-child(3)  { left: calc(2/12 * 100%) }
+.semitoneTick:nth-child(4)  { left: calc(3/12 * 100%) }
+.semitoneTick:nth-child(5)  { left: calc(4/12 * 100%) }
+.semitoneTick:nth-child(6)  { left: calc(5/12 * 100%) }
+.semitoneTick:nth-child(7)  { left: calc(6/12 * 100%) }
+.semitoneTick:nth-child(8)  { left: calc(7/12 * 100%) }
+.semitoneTick:nth-child(9)  { left: calc(8/12 * 100%) }
+.semitoneTick:nth-child(10) { left: calc(9/12 * 100%) }
+.semitoneTick:nth-child(11) { left: calc(10/12 * 100%) }
+.semitoneTick:nth-child(12) { left: calc(11/12 * 100%) }
+.semitoneTick:nth-child(13) { left: calc(12/12 * 100%) }
+
+.semitoneTickDone {
+  opacity: 0.6;
+}
+
+/* ── ROOT KEY LABEL ──────────────────────────────────────────────────── */
+.rootKeyLabel {
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+/* ── CYCLE INFO (intro) ──────────────────────────────────────────────── */
+.cycleInfo {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: 8px;
+  font-style: italic;
+  line-height: 1.5;
+}
