@@ -6,7 +6,7 @@ import XPFloat from './XPFloat'
 
 const CIRCUMFERENCE  = 2 * Math.PI * 54
 const TOTAL_SEMITONES = 12
-const NOTE_DURATION  = 1300  // ms between notes
+const DEFAULT_NOTE_DURATION = 1300  // ms — adjusted by speed slider
 
 // ── PIANO HELPERS ─────────────────────────────────────────────────────────
 const WHITE_LETTERS = ['C','D','E','F','G','A','B']
@@ -145,6 +145,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
   const [glidePos, setGlidePos]       = useState(0)
 
   const [samplerReady, setSamplerReady] = useState(getSamplerReady())
+  const [speed, setSpeed]               = useState(50)  // 0=slowest, 100=fastest
 
   // Poll for sampler ready — updates the loading state
   useEffect(() => {
@@ -158,7 +159,8 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
   const { playToneHz, playGlide, playTrill, stopAll } = useAudio()
 
   // All timers stored in one ref object — easy to clear all
-  const timers   = useRef({ walk: null, timer: null, breath: null, coach: null, glide: null })
+  const timers        = useRef({ walk: null, timer: null, breath: null, coach: null, glide: null })
+  const noteDurRef    = useRef(DEFAULT_NOTE_DURATION)  // live-updated by slider
   const running  = useRef(false)  // true while exercise is active
   const xpId     = useRef(0)
   const baseNotes = currentLevel.notes
@@ -192,6 +194,22 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
 
   function removeFloat(id) {
     setXpFloats(prev => prev.filter(f => f.id !== id))
+  }
+
+  function handleSpeedChange(val) {
+    const v = parseInt(val)
+    setSpeed(v)
+    // Map 0-100 → 2400ms (slowest) to 400ms (fastest)
+    const dur = Math.round(2400 - (v / 100) * 2000)
+    noteDurRef.current = dur
+  }
+
+  function speedLabel(v) {
+    if (v < 20) return 'Very Slow'
+    if (v < 40) return 'Slow'
+    if (v < 60) return 'Medium'
+    if (v < 80) return 'Fast'
+    return 'Very Fast'
   }
 
   function tapKey(noteName) {
@@ -229,17 +247,17 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
       setActiveNote(note)
 
       // Play the note audio — real piano sample
-      playPianoNote(note, NOTE_DURATION / 1000 * 0.82)
+      playPianoNote(note, noteDurRef.current / 1000 * 0.82)
 
       xp(XP_REWARDS.completeNote)
       onAddNoteXP()
 
       i++
-      timers.current.walk = setTimeout(tick, NOTE_DURATION)
+      timers.current.walk = setTimeout(tick, noteDurRef.current)
     }
 
     // Small delay before first note so UI can settle
-    timers.current.walk = setTimeout(tick, 300)
+    timers.current.walk = setTimeout(tick, 200)
   }
 
   // Runs all 12 semitone cycles recursively
@@ -514,6 +532,23 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
             </div>
           </div>
         )}
+
+        {/* Speed slider */}
+        <div className={styles.speedControl}>
+          <div className={styles.speedRow}>
+            <span className={styles.speedLabel}>🐢</span>
+            <input
+              type="range"
+              className={styles.speedSlider}
+              min={0} max={100} value={speed}
+              onChange={e => handleSpeedChange(e.target.value)}
+            />
+            <span className={styles.speedLabel}>🐇</span>
+          </div>
+          <div className={styles.speedValue} style={{ color: currentLevel.color }}>
+            {speedLabel(speed)}
+          </div>
+        </div>
 
         <div className={styles.followHint}>🎤 Follow each note — match it with your voice</div>
 
