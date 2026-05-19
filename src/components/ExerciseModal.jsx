@@ -46,7 +46,7 @@ function noteMatches(keyFullName, keyFlatName, scaleNote) {
   return false
 }
 
-function ScalePiano({ scaleNotes, activeNote, passedNotes, levelColor }) {
+function ScalePiano({ scaleNotes, activeNote, passedNotes, levelColor, onPlay }) {
   const containerRef = useRef(null)
   const keys = buildKeyboard(scaleNotes)
   const whiteKeys = keys.filter(k => !k.isBlack)
@@ -80,6 +80,7 @@ function ScalePiano({ scaleNotes, activeNote, passedNotes, levelColor }) {
                   ${isPassed ? styles.whitePassed  : ''}
                   ${isActive ? styles.whiteActive  : ''}`}
                 style={isActive ? { background: levelColor, boxShadow: `0 0 16px ${levelColor}` } : {}}
+                onPointerDown={() => onPlay && onPlay(k.fullName)}
               >
                 <span className={styles.keyLabel}>{k.letter}{k.octave}</span>
               </div>
@@ -95,6 +96,8 @@ function ScalePiano({ scaleNotes, activeNote, passedNotes, levelColor }) {
             const inScale  = scaleNotes.some(sn => noteMatches(bk.fullName, bk.flatName, sn))
             const isPassed = passedNotes.some(sn => noteMatches(bk.fullName, bk.flatName, sn))
             const isActive = activeNote && noteMatches(bk.fullName, bk.flatName, activeNote)
+            // Use the scale note name for playback (handles flats correctly)
+            const playName = scaleNotes.find(sn => noteMatches(bk.fullName, bk.flatName, sn)) || bk.fullName
             return (
               <div key={bk.fullName}
                 data-active={isActive ? 'true' : 'false'}
@@ -106,6 +109,7 @@ function ScalePiano({ scaleNotes, activeNote, passedNotes, levelColor }) {
                   left: i * KEY_W + KEY_W * 0.64,
                   ...(isActive ? { background: levelColor, boxShadow: `0 0 12px ${levelColor}` } : {})
                 }}
+                onPointerDown={e => { e.stopPropagation(); onPlay && onPlay(playName) }}
               >
                 <span className={styles.blackLabel}>
                   {bk.flatName ? bk.flatName.replace(/\d/,'') : bk.fullName.replace(/\d/,'')}
@@ -184,6 +188,14 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
 
   function removeXPFloat(id) {
     setXpFloats(prev => prev.filter(f => f.id !== id))
+  }
+
+  // Called when user taps a piano key manually
+  function handleKeyTap(noteName) {
+    unlockAudio()
+    const freq = noteFreq(noteName)
+    if (!freq) return
+    playToneHz(freq, 0.8, 'sine', 0.22)
   }
 
   // Play a note by name — no state dependencies inside
@@ -359,6 +371,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
             activeNote={null}
             passedNotes={[]}
             levelColor={currentLevel.color}
+            onPlay={handleKeyTap}
           />
           <div className={styles.scaleDesc}>{currentLevel.description}</div>
         </div>
@@ -443,6 +456,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
             activeNote={activeNote}
             passedNotes={passedNotes}
             levelColor={currentLevel.color}
+            onPlay={handleKeyTap}
           />
         </div>
 
