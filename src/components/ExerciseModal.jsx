@@ -7,20 +7,139 @@ import XPFloat from './XPFloat'
 const CIRCUMFERENCE = 2 * Math.PI * 54
 const REPS_PER_EXERCISE = 3
 
+// All white notes and which ones have a black key to the right
+const WHITE_NOTES  = ['C','D','E','F','G','A','B']
+const BLACK_AFTER  = { 'C':'C#','D':'D#','F':'F#','G':'G#','A':'A#' }
+
+// Parse a note name like "Eb4" into { natural:"E", sharp:false, flat:true, name:"Eb", octave:4 }
+function parseNote(fullName) {
+  const m = fullName.match(/^([A-G])(b|#)?(\d)$/)
+  if (!m) return null
+  return { letter: m[1], accidental: m[2] || '', octave: parseInt(m[3]), display: m[1] + (m[2] || '') }
+}
+
+// Build the list of white keys to render for the scale octave range
+function buildKeyboard(scaleNotes) {
+  // Find octave range from scale notes
+  const octaves = [...new Set(scaleNotes.map(n => parseNote(n)?.octave).filter(Boolean))].sort()
+  const keys = []
+  octaves.forEach(oct => {
+    WHITE_NOTES.forEach(letter => {
+      keys.push({ letter, octave: oct, isBlack: false, fullName: letter + oct })
+      const blackNote = BLACK_AFTER[letter]
+      if (blackNote) {
+        // Check for flat enharmonic — e.g. Bb = A#
+        const flatName  = { 'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb' }[blackNote + oct] || null
+        keys.push({ letter: blackNote.replace('#',''), accidental: '#', octave: oct, isBlack: true,
+          fullName: blackNote + oct, flatName: flatName ? flatName.replace(/\d/,'') + oct : null })
+      }
+    })
+  })
+  return keys
+}
+
+// Check if a scale note matches a keyboard key (handles enharmonic equivalents)
+function noteMatches(keyFullName, keyFlatName, scaleNote) {
+  if (!scaleNote) return false
+  if (keyFullName === scaleNote) return true
+  if (keyFlatName && keyFlatName === scaleNote) return true
+  return false
+}
+
+function ScalePiano({ scaleNotes, activeNote, passedNotes, levelColor }) {
+  const containerRef = useRef(null)
+  const keys = buildKeyboard(scaleNotes)
+  const whiteKeys = keys.filter(k => !k.isBlack)
+  const blackKeys = keys.filter(k => k.isBlack)
+
+  // Scroll to center the active note
+  useEffect(() => {
+    if (!activeNote || !containerRef.current) return
+    const activeEl = containerRef.current.querySelector('[data-active="true"]')
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
+  }, [activeNote])
+
+  const KEY_W = 44  // white key width + gap
+
+  return (
+    <div className={styles.pianoWrap}>
+      <div className={styles.pianoScroll} ref={containerRef}>
+        <div className={styles.pianoKeys} style={{ width: whiteKeys.length * KEY_W }}>
+          {/* White keys */}
+          {whiteKeys.map((k, i) => {
+            const inScale  = scaleNotes.some(sn => noteMatches(k.fullName, null, sn))
+            const isPassed = passedNotes.some(sn => noteMatches(k.fullName, null, sn))
+            const isActive = activeNote && noteMatches(k.fullName, null, activeNote)
+            return (
+              <div key={k.fullName}
+                data-active={isActive ? 'true' : 'false'}
+                className={`${styles.whiteKey}
+                  ${inScale  ? styles.whiteInScale : ''}
+                  ${isPassed ? styles.whitePassed  : ''}
+                  ${isActive ? styles.whiteActive  : ''}`}
+                style={isActive ? { background: levelColor, boxShadow: `0 0 16px ${levelColor}` } : {}}
+              >
+                <span className={styles.keyLabel}>{k.letter}{k.octave}</span>
+              </div>
+            )
+          })}
+
+          {/* Black keys — positioned absolutely */}
+          {whiteKeys.map((wk, i) => {
+            const blackNote = BLACK_AFTER[wk.letter]
+            if (!blackNote) return null
+            const bk = blackKeys.find(b => b.fullName === blackNote + wk.octave)
+            if (!bk) return null
+            const inScale  = scaleNotes.some(sn => noteMatches(bk.fullName, bk.flatName, sn))
+            const isPassed = passedNotes.some(sn => noteMatches(bk.fullName, bk.flatName, sn))
+            const isActive = activeNote && noteMatches(bk.fullName, bk.flatName, activeNote)
+            return (
+              <div key={bk.fullName}
+                data-active={isActive ? 'true' : 'false'}
+                className={`${styles.blackKey}
+                  ${inScale  ? styles.blackInScale : ''}
+                  ${isPassed ? styles.blackPassed  : ''}
+                  ${isActive ? styles.blackActive  : ''}`}
+                style={{
+                  left: i * KEY_W + KEY_W * 0.64,
+                  ...(isActive ? { background: levelColor, boxShadow: `0 0 12px ${levelColor}` } : {})
+                }}
+              >
+                <span className={styles.blackLabel}>
+                  {bk.flatName ? bk.flatName.replace(/\d/,'') : bk.fullName.replace(/\d/,'')}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      {/* Active note name display below piano */}
+      <div className={styles.pianoNoteDisplay} style={{ color: levelColor }}>
+        {activeNote ? activeNote.replace(/\d/, '') : '—'}
+        <span className={styles.pianoNoteHz}>
+          {activeNote ? `  ${Math.round(noteFreq(activeNote))} Hz` : ''}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onComplete, onAddNoteXP, onAddRepXP }) {
   const [phase, setPhase] = useState('intro')
+  const [activeNote, setActiveNote] = useState(null)
+  const [passedNotes, setPassedNotes] = useState([])
+  const [direction, setDirection] = useState('up')   // 'up' | 'down'
   const [noteIdx, setNoteIdx] = useState(0)
   const [currentRep, setCurrentRep] = useState(1)
-  const [repStartTime, setRepStartTime] = useState(null)
-  const [noteState, setNoteState] = useState('idle')
+  const [noteState, setNoteState] = useState('idle') // idle | playing | waiting | confirmed
   const [coachMsg, setCoachMsg] = useState(randomCoach('start'))
   const [xpFloats, setXpFloats] = useState([])
   const [totalXP, setTotalXP] = useState(0)
   const [breathPhase, setBreathPhase] = useState(0)
   const [glidePos, setGlidePos] = useState(0)
   const [remaining, setRemaining] = useState(ex.timerSecs)
-  const [notesPassed, setNotesPassed] = useState([])
-  const [pulseNote, setPulseNote] = useState(false)
 
   const { playToneHz, playGlide, playTrill, stopAll } = useAudio()
   const timerRef     = useRef(null)
@@ -29,13 +148,17 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
   const noteTimeout  = useRef(null)
   const coachTimeout = useRef(null)
   const xpIdRef      = useRef(0)
-  // Keep a ref to the current note index so timeouts always read the latest value
   const noteIdxRef   = useRef(0)
+  const directionRef = useRef('up')
   const noteStateRef = useRef('idle')
-  const phaseRef     = useRef('intro')
+  const repStartRef  = useRef(null)
 
-  const scaleNotes = currentLevel.notes
-  const offset     = CIRCUMFERENCE * (1 - remaining / ex.timerSecs)
+  // Build ascending then descending sequence: [C,D,E,G,A,C5, A,G,E,D,C]
+  const ascNotes  = currentLevel.notes
+  const descNotes = [...currentLevel.notes].reverse().slice(1) // skip top note (already played)
+  const fullSequence = [...ascNotes, ...descNotes]
+
+  const offset = CIRCUMFERENCE * (1 - remaining / ex.timerSecs)
 
   const clearAll = useCallback(() => {
     clearInterval(timerRef.current)
@@ -63,7 +186,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
     setXpFloats(prev => prev.filter(f => f.id !== id))
   }
 
-  // Always pass the note name explicitly — never rely on state inside timeouts
+  // Play a note by name — no state dependencies inside
   function playNoteByName(noteName) {
     unlockAudio()
     if (!noteName) return
@@ -71,84 +194,78 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
     if (!freq) return
     noteStateRef.current = 'playing'
     setNoteState('playing')
-    setPulseNote(true)
-    setTimeout(() => setPulseNote(false), 600)
-    playToneHz(freq, 2.0, 'sine', 0.22)
+    setActiveNote(noteName)
+    playToneHz(freq, 0.9, 'sine', 0.22)
     noteTimeout.current = setTimeout(() => {
       noteStateRef.current = 'waiting'
       setNoteState('waiting')
-    }, 2300)
+    }, 1000)
   }
 
-  // Called from the PLAY NOTE button - reads current note from ref
-  function handlePlayNoteButton() {
-    if (noteStateRef.current === 'playing') return
-    const noteName = scaleNotes[noteIdxRef.current]
-    playNoteByName(noteName)
-  }
+  // Auto-walk the full up+down sequence with a set interval
+  function startScaleWalk(rep) {
+    noteIdxRef.current = 0
+    directionRef.current = 'up'
+    setNoteIdx(0)
+    setDirection('up')
+    setPassedNotes([])
+    setActiveNote(null)
+    repStartRef.current = Date.now()
 
-  function advanceToNote(idx) {
-    noteIdxRef.current = idx
-    noteStateRef.current = 'idle'
-    setNoteIdx(idx)
-    setNoteState('idle')
-  }
+    const NOTE_INTERVAL = 1400 // ms between notes
 
-  function confirmNote() {
-    if (noteStateRef.current !== 'waiting' && noteStateRef.current !== 'playing') return
-    const idx = noteIdxRef.current
-    noteStateRef.current = 'confirmed'
-    setNoteState('confirmed')
-    setNotesPassed(prev => [...prev, idx])
-    spawnXP(XP_REWARDS.completeNote)
-    onAddNoteXP()
-    showCoach('noteMatch')
-
-    setTimeout(() => {
-      const nextIdx = idx + 1
-      if (nextIdx >= scaleNotes.length) {
-        finishRep()
-      } else {
-        advanceToNote(nextIdx)
-        // Auto play next note after a short pause
-        noteTimeout.current = setTimeout(() => {
-          playNoteByName(scaleNotes[nextIdx])
-        }, 600)
+    function playNoteAtIdx(idx) {
+      if (idx >= fullSequence.length) {
+        // Finished one full up+down pass — that's one rep
+        finishRep(rep)
+        return
       }
-    }, 700)
+      const noteName = fullSequence[idx]
+      const isDescending = idx >= ascNotes.length
+      directionRef.current = isDescending ? 'down' : 'up'
+      setDirection(isDescending ? 'down' : 'up')
+      noteIdxRef.current = idx
+      setNoteIdx(idx)
+
+      // Mark previous note as passed
+      if (idx > 0) {
+        setPassedNotes(prev => [...prev, fullSequence[idx - 1]])
+      }
+
+      playNoteByName(noteName)
+      spawnXP(XP_REWARDS.completeNote)
+      onAddNoteXP()
+
+      noteTimeout.current = setTimeout(() => {
+        playNoteAtIdx(idx + 1)
+      }, NOTE_INTERVAL)
+    }
+
+    noteTimeout.current = setTimeout(() => playNoteAtIdx(0), 600)
   }
 
-  function finishRep() {
-    const elapsed = Date.now() - repStartTime
-    const perfect = elapsed < ex.timerSecs * 1000 * 1.5
+  function finishRep(rep) {
+    const perfect = true // auto-walk is always guided so always perfect
     onAddRepXP(perfect)
-    spawnXP(perfect ? XP_REWARDS.perfectRep : XP_REWARDS.completeRep)
+    spawnXP(XP_REWARDS.perfectRep)
     showCoach('repComplete')
 
-    setCurrentRep(rep => {
-      const nextRep = rep + 1
-      if (nextRep > REPS_PER_EXERCISE) {
-        setTimeout(() => completeExercise(), 1400)
-      } else {
-        setTimeout(() => {
-          advanceToNote(0)
-          setNotesPassed([])
-          setRepStartTime(Date.now())
-          showCoach('encouragement', 600)
-          // Auto play first note of next rep
-          noteTimeout.current = setTimeout(() => {
-            playNoteByName(scaleNotes[0])
-          }, 1000)
-        }, 1400)
-      }
-      return nextRep
-    })
+    const nextRep = rep + 1
+    if (nextRep > REPS_PER_EXERCISE) {
+      setTimeout(() => completeExercise(), 1200)
+    } else {
+      setCurrentRep(nextRep)
+      setPassedNotes([])
+      setActiveNote(null)
+      showCoach('encouragement', 400)
+      setTimeout(() => startScaleWalk(nextRep), 1800)
+    }
   }
 
   function completeExercise() {
     clearAll()
-    phaseRef.current = 'complete'
     setPhase('complete')
+    setActiveNote(null)
     spawnXP(XP_REWARDS.completeExercise)
     showCoach('complete')
     onComplete()
@@ -156,18 +273,15 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
 
   function startExercise() {
     unlockAudio()
-    phaseRef.current = 'active'
     setPhase('active')
-    noteIdxRef.current = 0
-    noteStateRef.current = 'idle'
-    setNoteIdx(0)
-    setNoteState('idle')
-    setNotesPassed([])
     setCurrentRep(1)
-    setRepStartTime(Date.now())
+    setPassedNotes([])
+    setActiveNote(null)
+    setNoteState('idle')
     setRemaining(ex.timerSecs)
     showCoach('start')
 
+    // Background audio for certain exercise types
     if (ex.audioType === 'sigh')  playGlide(480, 200, ex.timerSecs * 0.85)
     if (ex.audioType === 'trill' || ex.audioType === 'straw') playTrill(ex.timerSecs)
     if (ex.audioType === 'glide') {
@@ -185,11 +299,8 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
       })
     }, 1000)
 
-    // Play first note after 1 second — pass note name directly, never rely on state
-    const firstNote = scaleNotes[0]
-    noteTimeout.current = setTimeout(() => {
-      playNoteByName(firstNote)
-    }, 1000)
+    // Start walking the scale
+    startScaleWalk(1)
   }
 
   function startBreath() {
@@ -217,7 +328,6 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
 
   const breathLabels = ['INHALE...', 'HOLD', 'EXHALE...']
   const breathScales = [1.9, 1.9, 1]
-  const currentNote  = scaleNotes[noteIdx]
 
   // ── INTRO ──────────────────────────────────────────────────────────────
   if (phase === 'intro') return (
@@ -241,21 +351,20 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           ))}
         </div>
 
+        {/* Piano preview */}
         <div className={styles.scalePreview}>
-          <div className={styles.scalePreviewLabel}>YOUR SCALE TODAY</div>
-          <div className={styles.scaleNoteRow}>
-            {currentLevel.notes.map((n, i) => (
-              <div key={i} className={styles.scaleNotePill}
-                style={{ background: currentLevel.color + '22', borderColor: currentLevel.color + '66', color: currentLevel.color }}>
-                {n.replace(/\d/, '')}
-              </div>
-            ))}
-          </div>
+          <div className={styles.scalePreviewLabel}>YOUR SCALE — LISTEN THEN FOLLOW</div>
+          <ScalePiano
+            scaleNotes={currentLevel.notes}
+            activeNote={null}
+            passedNotes={[]}
+            levelColor={currentLevel.color}
+          />
           <div className={styles.scaleDesc}>{currentLevel.description}</div>
         </div>
 
         <div className={styles.xpPreview}>
-          ⭐ Up to {XP_REWARDS.completeExercise + currentLevel.notes.length * REPS_PER_EXERCISE * XP_REWARDS.completeNote + REPS_PER_EXERCISE * XP_REWARDS.perfectRep} XP available
+          ⭐ Up to {XP_REWARDS.completeExercise + fullSequence.length * REPS_PER_EXERCISE * XP_REWARDS.completeNote + REPS_PER_EXERCISE * XP_REWARDS.perfectRep} XP available
         </div>
 
         <button className={styles.startBtn} onClick={startExercise}>BEGIN EXERCISE</button>
@@ -286,7 +395,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
             <div className={styles.statLabel}>XP EARNED</div>
           </div>
           <div className={styles.statBox}>
-            <div className={styles.statNum}>{currentLevel.notes.length * REPS_PER_EXERCISE}</div>
+            <div className={styles.statNum}>{fullSequence.length * REPS_PER_EXERCISE}</div>
             <div className={styles.statLabel}>NOTES</div>
           </div>
         </div>
@@ -314,34 +423,27 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           <div className={styles.coachText}>{coachMsg}</div>
         </div>
 
-        {/* Scale note progress dots */}
-        <div className={styles.noteProgress}>
-          {scaleNotes.map((n, i) => (
-            <div key={i}
-              className={`${styles.noteDot} ${i === noteIdx ? styles.noteDotActive : ''} ${notesPassed.includes(i) ? styles.noteDotDone : ''}`}
-              style={
-                i === noteIdx
-                  ? { background: currentLevel.color, boxShadow: `0 0 10px ${currentLevel.color}`, color: '#000' }
-                  : notesPassed.includes(i)
-                  ? { background: currentLevel.color + '44', color: currentLevel.color }
-                  : {}
-              }>
-              {n.replace(/\d/, '')}
-            </div>
-          ))}
+        {/* Direction indicator */}
+        <div className={styles.directionRow}>
+          <div className={`${styles.dirArrow} ${direction === 'up' ? styles.dirArrowActive : ''}`}
+            style={direction === 'up' ? { color: currentLevel.color } : {}}>
+            ↑ ASCENDING
+          </div>
+          <div className={`${styles.dirArrow} ${direction === 'down' ? styles.dirArrowActive : ''}`}
+            style={direction === 'down' ? { color: currentLevel.color } : {}}>
+            DESCENDING ↓
+          </div>
         </div>
 
-        {/* Big note display */}
-        <div className={styles.noteDisplayWrap}>
+        {/* Piano */}
+        <div className={styles.pianoSection}>
           {xpFloats.map(f => <XPFloat key={f.id} amount={f.amount} onDone={() => removeXPFloat(f.id)} />)}
-          <div
-            className={`${styles.bigNote} ${pulseNote ? styles.bigNotePulse : ''} ${noteState === 'confirmed' ? styles.bigNoteConfirmed : ''}`}
-            style={{ color: currentLevel.color, textShadow: `0 0 40px ${currentLevel.color}88` }}>
-            {currentNote ? currentNote.replace(/\d/, '') : '—'}
-          </div>
-          <div className={styles.noteHz}>
-            {currentNote ? `${Math.round(noteFreq(currentNote))} Hz` : ''}
-          </div>
+          <ScalePiano
+            scaleNotes={currentLevel.notes}
+            activeNote={activeNote}
+            passedNotes={passedNotes}
+            levelColor={currentLevel.color}
+          />
         </div>
 
         {/* Timer + XP */}
@@ -364,7 +466,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           </div>
         </div>
 
-        {/* Breath ball */}
+        {/* Breath ball for breath exercises */}
         {ex.audioType === 'breathCycle' && (
           <div className={styles.breathWrap}>
             <div className={styles.breathBall}
@@ -383,31 +485,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           </div>
         )}
 
-        {/* Action buttons */}
-        <div className={styles.actionRow}>
-          <button
-            className={`${styles.playNoteBtn} ${noteState === 'playing' ? styles.playNoteBtnActive : ''}`}
-            style={{
-              borderColor: currentLevel.color,
-              color: noteState === 'playing' ? '#000' : currentLevel.color,
-              background: noteState === 'playing' ? currentLevel.color : 'transparent'
-            }}
-            onClick={handlePlayNoteButton}
-            disabled={noteState === 'confirmed'}>
-            ▶ PLAY NOTE
-          </button>
-          <button
-            className={`${styles.matchBtn} ${(noteState === 'waiting' || noteState === 'playing') ? styles.matchBtnReady : ''}`}
-            style={(noteState === 'waiting' || noteState === 'playing') ? {
-              background: `linear-gradient(135deg, ${currentLevel.color}, var(--mtd2))`,
-              color: '#000',
-              borderColor: currentLevel.color
-            } : {}}
-            onClick={confirmNote}
-            disabled={noteState === 'idle' || noteState === 'confirmed'}>
-            {noteState === 'confirmed' ? '✓ MATCHED!' : '✓ I MATCHED IT'}
-          </button>
-        </div>
+        <div className={styles.followHint}>🎤 Follow along — match each note as it plays</div>
 
         <button className={styles.stopBtn} onClick={() => { clearAll(); onClose() }}>END SESSION</button>
       </div>

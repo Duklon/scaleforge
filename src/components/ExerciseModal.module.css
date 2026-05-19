@@ -75,3 +75,155 @@
 .closeBtn:active { background:var(--surface2); }
 .stopBtn { width:100%; padding:12px; border-radius:var(--radius-lg); border:1px solid var(--border); background:transparent; color:var(--text-dim); font-size:13px; font-family:var(--font-mono); letter-spacing:1px; transition:all 0.15s; margin-bottom:8px; }
 .stopBtn:active { background:var(--surface2); }
+
+/* ── PIANO ─────────────────────────────────────────────────────────────── */
+.pianoWrap {
+  margin-bottom: 12px;
+}
+
+.pianoScroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  border-radius: var(--radius-md);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 12px 10px 8px;
+}
+.pianoScroll::-webkit-scrollbar { display: none; }
+
+.pianoKeys {
+  position: relative;
+  height: 100px;
+  display: flex;
+  gap: 3px;
+}
+
+.whiteKey {
+  width: 41px;
+  height: 100px;
+  background: linear-gradient(180deg, #d8d8ee 0%, #b8b8cc 100%);
+  border-radius: 0 0 6px 6px;
+  border: 1px solid #8888aa;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+  position: relative;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.whiteInScale {
+  background: linear-gradient(180deg, #c8f5ee 0%, #9de8d8 100%);
+  border-color: var(--accent2);
+}
+
+.whitePassed {
+  background: linear-gradient(180deg, #a0d8cc 0%, #70b8a8 100%);
+  border-color: var(--accent2);
+}
+
+.whiteActive {
+  transform: translateY(2px);
+}
+
+.keyLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: rgba(60, 60, 90, 0.7);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.blackKey {
+  position: absolute;
+  top: 0;
+  width: 27px;
+  height: 62px;
+  background: linear-gradient(180deg, #2a2a3d 0%, #0a0a0f 100%);
+  border-radius: 0 0 5px 5px;
+  border: 1px solid #444;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.blackInScale {
+  background: linear-gradient(180deg, #004d3d 0%, #002a22 100%);
+  border-color: var(--accent2);
+}
+
+.blackPassed {
+  background: linear-gradient(180deg, #006655 0%, #003a30 100%);
+  border-color: var(--accent2);
+}
+
+.blackActive {
+  transform: translateY(2px);
+}
+
+.blackLabel {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  color: rgba(180, 220, 210, 0.8);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.pianoNoteDisplay {
+  font-family: var(--font-display);
+  font-size: 36px;
+  text-align: center;
+  padding: 6px 0 2px;
+  line-height: 1;
+  letter-spacing: 2px;
+  min-height: 46px;
+}
+
+.pianoNoteHz {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  opacity: 0.6;
+  letter-spacing: 1px;
+}
+
+/* ── DIRECTION INDICATOR ─────────────────────────────────────────────── */
+.directionRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.dirArrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  transition: color 0.3s;
+  opacity: 0.4;
+}
+
+.dirArrowActive {
+  opacity: 1;
+  font-weight: 700;
+}
+
+/* ── PIANO SECTION (wrapper with XP floats) ──────────────────────────── */
+.pianoSection {
+  position: relative;
+  margin-bottom: 4px;
+}
+
+/* ── FOLLOW HINT ─────────────────────────────────────────────────────── */
+.followHint {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  font-style: italic;
+}
