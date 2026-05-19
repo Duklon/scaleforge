@@ -1,24 +1,2 @@
-.float {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translateX(-50%) translateY(-20px);
-  font-family: var(--font-display);
-  font-size: 28px;
-  color: #ffd700;
-  text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
-  pointer-events: none;
-  z-index: 100;
-  animation: floatUp 1s ease-out forwards;
-  white-space: nowrap;
-}
-
-.fadeOut {
-  opacity: 0;
-}
-
-@keyframes floatUp {
-  0% { opacity: 1; transform: translateX(-50%) translateY(-20px) scale(1.2); }
-  60% { opacity: 1; transform: translateX(-50%) translateY(-60px) scale(1); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-90px) scale(0.8); }
-}
+.float { position:absolute; top:50%; left:50%; font-family:var(--font-display); font-size:28px; color:#ffd700; text-shadow:0 0 20px rgba(255,215,0,0.8); pointer-events:none; z-index:100; white-space:nowrap; animation:floatUp 1s ease-out forwards; }
+@keyframes floatUp { 0%{opacity:1;transform:translateX(-50%) translateY(-20px) scale(1.2)} 60%{opacity:1;transform:translateX(-50%) translateY(-60px) scale(1)} 100%{opacity:0;transform:translateX(-50%) translateY(-90px) scale(0.8)} }

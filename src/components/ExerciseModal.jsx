@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './ExerciseModal.module.css'
-import { useAudio, noteNameToFreq } from '../hooks/useAudio'
+import { useAudio, unlockAudio } from '../hooks/useAudio'
 import { noteFreq, randomCoach, XP_REWARDS } from '../data/progression'
 import XPFloat from './XPFloat'
 
@@ -12,7 +12,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
   const [currentNoteIdx, setCurrentNoteIdx] = useState(0)
   const [currentRep, setCurrentRep] = useState(1)
   const [repStartTime, setRepStartTime] = useState(null)
-  const [noteState, setNoteState] = useState('idle')
+  const [noteState, setNoteState] = useState('idle') // idle | playing | waiting | confirmed
   const [coachMsg, setCoachMsg] = useState(randomCoach('start'))
   const [xpFloats, setXpFloats] = useState([])
   const [totalXP, setTotalXP] = useState(0)
@@ -23,21 +23,21 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
   const [pulseNote, setPulseNote] = useState(false)
 
   const { playToneHz, playGlide, playTrill, stopAll } = useAudio()
-  const timerRef = useRef(null)
-  const breathRef = useRef(null)
-  const glideRef = useRef(null)
-  const notePlayTimeout = useRef(null)
-  const coachTimeout = useRef(null)
-  const xpIdRef = useRef(0)
+  const timerRef    = useRef(null)
+  const breathRef   = useRef(null)
+  const glideRef    = useRef(null)
+  const noteTimeout = useRef(null)
+  const coachTimeout= useRef(null)
+  const xpIdRef     = useRef(0)
 
-  const scaleNotes = currentLevel.notes
+  const scaleNotes  = currentLevel.notes
   const currentNote = scaleNotes[currentNoteIdx]
-  const offset = CIRCUMFERENCE * (1 - remaining / ex.timerSecs)
+  const offset      = CIRCUMFERENCE * (1 - remaining / ex.timerSecs)
 
   const clearAll = useCallback(() => {
     clearInterval(timerRef.current)
     clearTimeout(breathRef.current)
-    clearTimeout(notePlayTimeout.current)
+    clearTimeout(noteTimeout.current)
     clearTimeout(coachTimeout.current)
     cancelAnimationFrame(glideRef.current)
     stopAll()
@@ -56,14 +56,18 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
     setTotalXP(prev => prev + amount)
   }
 
+  function removeXPFloat(id) {
+    setXpFloats(prev => prev.filter(f => f.id !== id))
+  }
+
   function playCurrentNote() {
+    unlockAudio()
     if (noteState === 'playing') return
     setNoteState('playing')
     setPulseNote(true)
     setTimeout(() => setPulseNote(false), 600)
-    const freq = noteFreq(currentNote)
-    playToneHz(freq, 2.0, 'sine', 0.22)
-    notePlayTimeout.current = setTimeout(() => setNoteState('waiting'), 2200)
+    playToneHz(noteFreq(currentNote), 2.0, 'sine', 0.22)
+    noteTimeout.current = setTimeout(() => setNoteState('waiting'), 2300)
   }
 
   function confirmNote() {
@@ -113,15 +117,17 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
   }
 
   function startExercise() {
+    unlockAudio()
     setPhase('active')
     setRepStartTime(Date.now())
     setCurrentNoteIdx(0)
     setCurrentRep(1)
     setNotesPassed([])
     setNoteState('idle')
+    setRemaining(ex.timerSecs)
     showCoach('start')
 
-    if (ex.audioType === 'sigh') playGlide(480, 200, ex.timerSecs * 0.85)
+    if (ex.audioType === 'sigh')  playGlide(480, 200, ex.timerSecs * 0.85)
     if (ex.audioType === 'trill' || ex.audioType === 'straw') playTrill(ex.timerSecs)
     if (ex.audioType === 'glide') {
       const up = ex.glideDir !== 'down'
@@ -137,7 +143,8 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
       })
     }, 1000)
 
-    notePlayTimeout.current = setTimeout(() => playCurrentNote(), 800)
+    // Auto play first note after short delay
+    noteTimeout.current = setTimeout(() => playCurrentNote(), 1000)
   }
 
   function startBreath() {
@@ -175,7 +182,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
         <div className={styles.title}>{ex.name.toUpperCase()}</div>
         <div className={styles.subtitle}>{ex.category} · {ex.difficulty} · {ex.duration}</div>
 
-        <div className={styles.levelBadge} style={{ borderColor: currentLevel.color, color: currentLevel.color }}>
+        <div className={styles.levelBadge} style={{ borderColor:currentLevel.color, color:currentLevel.color }}>
           🎵 {currentLevel.name} Scale — Level {currentLevel.level}
         </div>
 
@@ -192,7 +199,8 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           <div className={styles.scalePreviewLabel}>YOUR SCALE TODAY</div>
           <div className={styles.scaleNoteRow}>
             {currentLevel.notes.map((n, i) => (
-              <div key={i} className={styles.scaleNotePill} style={{ background: currentLevel.color + '22', borderColor: currentLevel.color + '66', color: currentLevel.color }}>
+              <div key={i} className={styles.scaleNotePill}
+                style={{ background:currentLevel.color+'22', borderColor:currentLevel.color+'66', color:currentLevel.color }}>
                 {n.replace(/\d/, '')}
               </div>
             ))}
@@ -201,7 +209,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
         </div>
 
         <div className={styles.xpPreview}>
-          ⭐ Up to {XP_REWARDS.completeExercise + currentLevel.notes.length * REPS_PER_EXERCISE * XP_REWARDS.completeNote + REPS_PER_EXERCISE * XP_REWARDS.perfectRep} XP available this session
+          ⭐ Up to {XP_REWARDS.completeExercise + currentLevel.notes.length * REPS_PER_EXERCISE * XP_REWARDS.completeNote + REPS_PER_EXERCISE * XP_REWARDS.perfectRep} XP available
         </div>
 
         <button className={styles.startBtn} onClick={startExercise}>BEGIN EXERCISE</button>
@@ -218,7 +226,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
         <div className={styles.handle} />
         <div className={styles.completeEmoji}>🎉</div>
         <div className={styles.completeTitle}>EXERCISE COMPLETE!</div>
-        <div className={styles.coachBubble} style={{ marginBottom: 20 }}>
+        <div className={styles.coachBubble} style={{ marginBottom:20 }}>
           <div className={styles.coachIcon}>🎤</div>
           <div className={styles.coachText}>{coachMsg}</div>
         </div>
@@ -228,7 +236,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
             <div className={styles.statLabel}>REPS</div>
           </div>
           <div className={styles.statBox}>
-            <div className={styles.statNum} style={{ color: '#ffd700' }}>+{totalXP}</div>
+            <div className={styles.statNum} style={{color:'#ffd700'}}>+{totalXP}</div>
             <div className={styles.statLabel}>XP EARNED</div>
           </div>
           <div className={styles.statBox}>
@@ -250,7 +258,7 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
 
         <div className={styles.activeHeader}>
           <div className={styles.activeTitle}>{ex.name.toUpperCase()}</div>
-          <div className={styles.repBadge} style={{ borderColor: currentLevel.color, color: currentLevel.color }}>
+          <div className={styles.repBadge} style={{ borderColor:currentLevel.color, color:currentLevel.color }}>
             Rep {currentRep}/{REPS_PER_EXERCISE}
           </div>
         </div>
@@ -260,38 +268,35 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           <div className={styles.coachText}>{coachMsg}</div>
         </div>
 
-        {/* Scale note progress dots */}
         <div className={styles.noteProgress}>
           {scaleNotes.map((n, i) => (
-            <div key={i} className={`${styles.noteDot} ${i === currentNoteIdx ? styles.noteDotActive : ''} ${notesPassed.includes(i) ? styles.noteDotDone : ''}`}
-              style={i === currentNoteIdx ? { background: currentLevel.color, boxShadow: `0 0 10px ${currentLevel.color}`, color: '#000' } :
-                notesPassed.includes(i) ? { background: currentLevel.color + '44', color: currentLevel.color } : {}}>
+            <div key={i} className={`${styles.noteDot} ${i===currentNoteIdx?styles.noteDotActive:''} ${notesPassed.includes(i)?styles.noteDotDone:''}`}
+              style={i===currentNoteIdx ? { background:currentLevel.color, boxShadow:`0 0 10px ${currentLevel.color}`, color:'#000' }
+                : notesPassed.includes(i) ? { background:currentLevel.color+'44', color:currentLevel.color } : {}}>
               {n.replace(/\d/, '')}
             </div>
           ))}
         </div>
 
-        {/* Big note display */}
         <div className={styles.noteDisplayWrap}>
           {xpFloats.map(f => <XPFloat key={f.id} amount={f.amount} onDone={() => removeXPFloat(f.id)} />)}
-          <div className={`${styles.bigNote} ${pulseNote ? styles.bigNotePulse : ''} ${noteState === 'confirmed' ? styles.bigNoteConfirmed : ''}`}
-            style={{ color: currentLevel.color, textShadow: `0 0 40px ${currentLevel.color}88` }}>
+          <div className={`${styles.bigNote} ${pulseNote?styles.bigNotePulse:''} ${noteState==='confirmed'?styles.bigNoteConfirmed:''}`}
+            style={{ color:currentLevel.color, textShadow:`0 0 40px ${currentLevel.color}88` }}>
             {currentNote?.replace(/\d/, '') || '—'}
           </div>
           <div className={styles.noteHz}>{currentNote ? `${Math.round(noteFreq(currentNote))} Hz` : ''}</div>
         </div>
 
-        {/* Timer + XP row */}
         <div className={styles.timerXpRow}>
           <div className={styles.timerRing}>
-            <svg width="80" height="80" viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)', position: 'absolute', inset: 0 }}>
+            <svg width="80" height="80" viewBox="0 0 120 120" style={{ transform:'rotate(-90deg)', position:'absolute', inset:0 }}>
               <circle fill="none" stroke="var(--border)" strokeWidth="8" cx="60" cy="60" r="54" />
               <circle fill="none" stroke={currentLevel.color} strokeWidth="8" strokeLinecap="round"
                 cx="60" cy="60" r="54" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset}
-                style={{ transition: 'stroke-dashoffset 1s linear' }} />
+                style={{ transition:'stroke-dashoffset 1s linear' }} />
             </svg>
             <div className={styles.timerInner}>
-              <div className={styles.timerCount} style={{ fontSize: 22 }}>{remaining}</div>
+              <div className={styles.timerCount}>{remaining}</div>
               <div className={styles.timerUnit}>SEC</div>
             </div>
           </div>
@@ -301,37 +306,34 @@ export default function ExerciseModal({ exercise: ex, currentLevel, onClose, onC
           </div>
         </div>
 
-        {/* Breath ball */}
         {ex.audioType === 'breathCycle' && (
           <div className={styles.breathWrap}>
             <div className={styles.breathBall}
-              style={{ transform: `scale(${breathScales[breathPhase]})`, transition: `transform ${ex.breathPattern?.[breathPhase] || 4}s ease-in-out`, borderColor: currentLevel.color }} />
+              style={{ transform:`scale(${breathScales[breathPhase]})`, transition:`transform ${ex.breathPattern?.[breathPhase]||4}s ease-in-out`, borderColor:currentLevel.color }} />
             <div className={styles.breathLabel}>{breathLabels[breathPhase]}</div>
           </div>
         )}
 
-        {/* Glide bar */}
         {(ex.audioType === 'glide' || ex.audioType === 'trill' || ex.audioType === 'straw') && (
           <div className={styles.glideCard}>
-            <div className={styles.glideLabel}>{ex.audioType === 'glide' ? 'PITCH GLIDE' : 'AIRFLOW'}</div>
-            <div className={styles.glideBar} style={{ background: `linear-gradient(90deg, ${currentLevel.color}, var(--mtd2))` }}>
-              <div className={styles.glideThumb} style={{ left: `${glidePos * 86}%` }} />
+            <div className={styles.glideLabel}>{ex.audioType==='glide'?'PITCH GLIDE':'AIRFLOW'}</div>
+            <div className={styles.glideBar} style={{ background:`linear-gradient(90deg,${currentLevel.color},var(--mtd2))` }}>
+              <div className={styles.glideThumb} style={{ left:`${glidePos*86}%` }} />
             </div>
           </div>
         )}
 
-        {/* Action buttons */}
         <div className={styles.actionRow}>
-          <button className={`${styles.playNoteBtn} ${noteState === 'playing' ? styles.playNoteBtnActive : ''}`}
-            style={{ borderColor: currentLevel.color, color: noteState === 'playing' ? '#000' : currentLevel.color,
-              background: noteState === 'playing' ? currentLevel.color : 'transparent' }}
-            onClick={playCurrentNote} disabled={noteState === 'confirmed'}>
+          <button className={`${styles.playNoteBtn} ${noteState==='playing'?styles.playNoteBtnActive:''}`}
+            style={{ borderColor:currentLevel.color, color:noteState==='playing'?'#000':currentLevel.color,
+              background:noteState==='playing'?currentLevel.color:'transparent' }}
+            onClick={playCurrentNote} disabled={noteState==='confirmed'}>
             ▶ PLAY NOTE
           </button>
-          <button className={`${styles.matchBtn} ${(noteState === 'waiting' || noteState === 'playing') ? styles.matchBtnReady : ''}`}
-            style={(noteState === 'waiting' || noteState === 'playing') ? { background: `linear-gradient(135deg, ${currentLevel.color}, var(--mtd2))`, color: '#000', borderColor: currentLevel.color } : {}}
-            onClick={confirmNote} disabled={noteState === 'idle' || noteState === 'confirmed'}>
-            {noteState === 'confirmed' ? '✓ MATCHED!' : '✓ I MATCHED IT'}
+          <button className={`${styles.matchBtn} ${(noteState==='waiting'||noteState==='playing')?styles.matchBtnReady:''}`}
+            style={(noteState==='waiting'||noteState==='playing') ? { background:`linear-gradient(135deg,${currentLevel.color},var(--mtd2))`, color:'#000', borderColor:currentLevel.color } : {}}
+            onClick={confirmNote} disabled={noteState==='idle'||noteState==='confirmed'}>
+            {noteState==='confirmed' ? '✓ MATCHED!' : '✓ I MATCHED IT'}
           </button>
         </div>
 

@@ -2,20 +2,39 @@ import { useRef } from 'react'
 import { ALL_NOTES } from '../data/scales'
 
 let _audioCtx = null
+
 function getCtx() {
-  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume()
+  }
   return _audioCtx
 }
 
+// Call on any user tap to unlock Web Audio (required by Chrome & iOS)
+export function unlockAudio() {
+  const ctx = getCtx()
+  if (ctx.state === 'suspended') ctx.resume()
+  // Silent buffer unlocks on iOS Safari
+  const buf = ctx.createBuffer(1, 1, 22050)
+  const src = ctx.createBufferSource()
+  src.buffer = buf
+  src.connect(ctx.destination)
+  src.start(0)
+}
+
+// A4 = 440Hz, A is index 9 in ALL_NOTES
 export function noteToFreq(note, octave) {
   const idx = ALL_NOTES.indexOf(note)
-  const semitones = (octave - 4) * 12 + idx
-  return 440 * Math.pow(2, semitones / 12) * Math.pow(2, (ALL_NOTES.indexOf('A') - ALL_NOTES.indexOf('C')) / -12)
+  const semitones = (octave - 4) * 12 + (idx - 9)
+  return 440 * Math.pow(2, semitones / 12)
 }
 
 export function noteNameToFreq(full) {
   const m = full.match(/^([A-G]#?)(\d)$/)
-  return m ? noteToFreq(m[1], parseInt(m[2])) : 220
+  return m ? noteToFreq(m[1], parseInt(m[2])) : 261.63
 }
 
 export function useAudio() {
